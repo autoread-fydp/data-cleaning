@@ -119,19 +119,18 @@ def process_aeneas(txt_filename, wav_filename, csv_filename):
   
 
 if __name__ == "__main__":
-    wav_files = sorted(glob.glob("anne*/wav/*.wav"))
-    txt_files = sorted(glob.glob("anne*/txt/*.txt"))
-    csv_files = ["/".join([f.split("/")[0], "csv", f.split("/")[2][:-3] + "csv"]) for f in txt_files]
-    processed_txt = ["/".join([f.split("/")[0], "processed_txt", f.split("/")[2]]) for f in txt_files]
+    wav_files = sorted(glob.glob("anne/anne*/wav/*.wav"))
+    txt_files = sorted(glob.glob("anne/anne*/txt/*.txt"))
+    csv_files = ["/".join(["/".join(f.split("/")[:-2]), "csv", f.split("/")[-1][:-3] + "csv"]) for f in txt_files]
+    processed_txt = ["/".join(["/".join(f.split("/")[:-2]), "processed_txt", f.split("/")[-1]]) for f in txt_files]
 
-    wav_files = [u"/home/ezeng/fydp/data/karen_savage/{}".format(f) for f in wav_files]
-    txt_files = [u"/home/ezeng/fydp/data/karen_savage/{}".format(f) for f in txt_files]
-    csv_files = [u"/home/ezeng/fydp/data/karen_savage/{}".format(f) for f in csv_files]
-    processed_txt = [u"/home/ezeng/fydp/data/karen_savage/{}".format(f) for f in processed_txt]
+    wav_files = [u"/content/{}".format(f) for f in wav_files]
+    txt_files = [u"/content/{}".format(f) for f in txt_files]
+    csv_files = [u"/content/{}".format(f) for f in csv_files]
+    processed_txt = [u"/content/{}".format(f) for f in processed_txt]
 
     for txt_f, save_f in zip(txt_files, processed_txt):
         process_and_save_txt_files(txt_f, save_f)
 
-    for wav_f, txt_f, csv_f in tqdm.tqdm(zip(wav_files, processed_txt, csv_files)):
-        csv_file = txt_f[:-3] + "csv"
+    for wav_f, txt_f, csv_f in tqdm.tqdm(zip(wav_files, processed_txt, csv_files), total=len(wav_files)):
         process_aeneas(txt_f, wav_f, csv_f)

@@ -59,7 +59,7 @@ def save_wav(out_dir, index, wav, text):
 
 def cut_wav_files(segments, wav_files):
     ind = 0
-    for segment, wav_f in tqdm.tqdm(zip(segments, wav_files)):
+    for segment, wav_f in tqdm.tqdm(zip(segments, wav_files), total=len(wav_files)):
         wav, sr = librosa.load(wav_f)
         for _, line in segment.iterrows():
             start_idx = int(line.start_sec * sr)
@@ -69,12 +69,17 @@ def cut_wav_files(segments, wav_files):
 
 
 if __name__ == "__main__":
-    wav_files = sorted(glob.glob("anne*/wav/*.wav"))
-    txt_files = sorted(glob.glob("anne*/txt/*.txt"))
-    csv_files = ["/".join([f.split("/")[0], "csv", f.split("/")[2][:-3] + "csv"]) for f in txt_files]
+    wav_files = sorted(glob.glob("anne/anne*/wav/*.wav"))
+    txt_files = sorted(glob.glob("anne/anne*/txt/*.txt"))
+    csv_files = [
+      "/".join([
+        "/".join(f.split("/")[:-2]), "csv",
+        f.split("/")[-1][:-3] + "csv"
+      ]) for f in txt_files
+    ]
 
-    wav_files = [u"/home/ezeng/fydp/data/karen_savage/{}".format(f) for f in wav_files]
-    csv_files = [u"/home/ezeng/fydp/data/karen_savage/{}".format(f) for f in csv_files]
+    wav_files = [u"/content/{}".format(f) for f in wav_files]
+    csv_files = [u"/content/{}".format(f) for f in csv_files]
 
     if not os.path.exists("processed_anne"):
         os.mkdir("processed_anne")
