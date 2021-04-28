@@ -1,11 +1,7 @@
-from aeneas.executetask import ExecuteTask
-from aeneas.task import Task
 import glob
 import numpy as np
 import os
 import pandas as pd
-import librosa
-import tqdm
 import nltk
 nltk.download('punkt')
 
@@ -13,6 +9,7 @@ nltk.download('punkt')
 def reformat_text_to_mplain(text):
     text = text.split("\n\n")
     text = [paragraph.replace("\n", " ") for paragraph in text]
+    text = [paragraph.replace('. . .', ',') for paragraph in text]
 
     text = [nltk.tokenize.sent_tokenize(paragraph) for paragraph in text]
 
@@ -34,7 +31,7 @@ def clean_smart_quotes(content):
     return content
 
 
-def split_long_sentences(sentence, max_len=300, sep_char="; ", min_words=2):
+def split_long_sentences(sentence, max_len=180, sep_char="; ", min_words=5):
     if len(sentence) < max_len:
         return [sentence]
     splitted_sentences = sentence.split(sep_char)
@@ -48,6 +45,29 @@ def split_long_sentences(sentence, max_len=300, sep_char="; ", min_words=2):
     elif sep_char == ": ":
         new_splitted_sentences = []
         for fragment in splitted_sentences:
+            new_splitted_sentences.extend(split_long_sentences(fragment, sep_char='--'))
+        return new_splitted_sentences
+    elif sep_char == "--":
+        # sometimes -- is also used for stuttering
+        # filter that out here
+        filtered_splitted_sentences = [splitted_sentences[0]]
+        stuttering = False
+        for fragment in splitted_sentences[1:]:
+            # if entered into a state of stuttering, add to previous segment
+            # before checking if stuttering has ended
+            if stuttering:
+                filtered_splitted_sentences[-1] += fragment
+                if len(fragment.split(" ")) > 2:
+                    stuttering = False
+            else:
+                if len(fragment.split(" ")) < 2:
+                    stuttering = True
+                    filtered_splitted_sentences[-1] += fragment
+                else:
+                    filtered_splitted_sentences.append(fragment)
+        
+        new_splitted_sentences = []
+        for fragment in filtered_splitted_sentences:
             new_splitted_sentences.extend(split_long_sentences(fragment, sep_char=', '))
         return new_splitted_sentences
 
@@ -59,8 +79,13 @@ def split_long_sentences(sentence, max_len=300, sep_char="; ", min_words=2):
         elif len(splitted_sentences) > 2:
             new_splitted_sentences = [splitted_sentences[0]]
             for fragment in splitted_sentences[1:]:
-                if len(fragment.split(" ")) > min_words:
+                # check if previous fragment is too short
+                if len(new_splitted_sentences[-1].split(" ")) < 3:
+                    new_splitted_sentences[-1] += fragment
+                # if current fragment is good, set as new fragment
+                elif len(fragment.split(" ")) > min_words:
                     new_splitted_sentences.append(fragment)
+                # if current fragment is too short, add to previous fragment
                 else:
                     new_splitted_sentences[-1] += fragment
             if len(new_splitted_sentences) < 2:
@@ -76,6 +101,8 @@ def process_and_save_txt_files(load_filename, save_filename):
         text = f.read()
 
     text = clean_smart_quotes(text)
+    text = text.replace(' . . .', ',')
+    text = text.replace('. . .', ',')
     # in this case, mplain is a aeneas format where each line is a separate sentence
     # and paragraphs are separated by \n\n
     mplain_txt = reformat_text_to_mplain(text).split("\n")
@@ -103,25 +130,12 @@ def process_and_save_txt_files(load_filename, save_filename):
         f.write("\n".join(mplain_txt_new))
 
 
-def process_aeneas(txt_filename, wav_filename, csv_filename):
-    # create Task object
-    config_string = u"task_language=eng|is_text_type=plain|os_task_file_format=csv"
-    task = Task(config_string=config_string)
-    task.audio_file_path_absolute = wav_filename
-    task.text_file_path_absolute = txt_filename
-    task.sync_map_file_path_absolute = csv_filename
-
-    # process Task
-    ExecuteTask(task).execute()
-
-    # output sync map to file
-    task.output_sync_map_file()
-  
-
 if __name__ == "__main__":
-    wav_files = sorted(glob.glob("anne*/wav/*.wav"))
-    txt_files = sorted(glob.glob("anne*/txt/*.txt"))
+    wav_files = sorted(glob.glob("r*/wav/*.wav"))
+    txt_files = sorted(glob.glob("r*/txt/*.txt"))
     csv_files = ["/".join([f.split("/")[0], "csv", f.split("/")[2][:-3] + "csv"]) for f in txt_files]
+    # csv_files = ["/".join(["/".join(f.split("/")[:-2]), "csv-filtered", f.split("/")[-1][:-3] + "csv"]) for f in wav_files]
+    
     processed_txt = ["/".join([f.split("/")[0], "processed_txt", f.split("/")[2]]) for f in txt_files]
 
     wav_files = [u"/home/ezeng/fydp/data/karen_savage/{}".format(f) for f in wav_files]
@@ -131,7 +145,3 @@ if __name__ == "__main__":
 
     for txt_f, save_f in zip(txt_files, processed_txt):
         process_and_save_txt_files(txt_f, save_f)
-
-    for wav_f, txt_f, csv_f in tqdm.tqdm(zip(wav_files, processed_txt, csv_files)):
-        csv_file = txt_f[:-3] + "csv"
-        process_aeneas(txt_f, wav_f, csv_f)

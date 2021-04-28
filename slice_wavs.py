@@ -40,7 +40,7 @@ def get_segments(csv_files):
 
     # concat all books and chapters together, then save it
     full_labels = pd.concat(segments, ignore_index=True)
-    rec_num = ["f%05d" % i for i in range(len(full_labels))]
+    rec_num = ["f%05d" % i for i in range(27739, 27739 + len(full_labels))]
     full_labels["ind"] = rec_num
     full_labels.to_csv("processed_anne/anne_full.csv")
     full_labels[["ind", "text"]].to_csv("anne_labels.csv", header=False, index=False, sep="|")
@@ -58,8 +58,8 @@ def save_wav(out_dir, index, wav, text):
 
 
 def cut_wav_files(segments, wav_files):
-    ind = 0
-    for segment, wav_f in tqdm.tqdm(zip(segments, wav_files)):
+    ind = 27739
+    for segment, wav_f in tqdm.tqdm(zip(segments, wav_files), total=len(wav_files)):
         wav, sr = librosa.load(wav_f)
         for _, line in segment.iterrows():
             start_idx = int(line.start_sec * sr)
@@ -69,8 +69,8 @@ def cut_wav_files(segments, wav_files):
 
 
 if __name__ == "__main__":
-    wav_files = sorted(glob.glob("anne*/wav/*.wav"))
-    txt_files = sorted(glob.glob("anne*/txt/*.txt"))
+    wav_files = sorted(glob.glob("r*/wav/*.wav"))
+    txt_files = sorted(glob.glob("r*/txt/*.txt"))
     csv_files = ["/".join([f.split("/")[0], "csv", f.split("/")[2][:-3] + "csv"]) for f in txt_files]
 
     wav_files = [u"/home/ezeng/fydp/data/karen_savage/{}".format(f) for f in wav_files]
